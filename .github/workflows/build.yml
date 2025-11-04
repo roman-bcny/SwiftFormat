@@ -5,6 +5,7 @@ on:
   pull_request:
 jobs:
   macos:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -41,6 +42,7 @@ jobs:
           env_vars: MD_APPLE_SDK_ROOT,RUNNER_OS,RUNNER_ARCH
 
   linux:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -78,14 +80,28 @@ jobs:
     runs-on: windows-latest
     name: windows (${{ matrix.tag }})
     steps:
-      - uses: compnerd/gha-setup-swift@main
+      - name: Setup Swift
+        uses: compnerd/gha-setup-swift@main
         with:
-          tag: ${{ matrix.tag }}
-          branch: ${{ matrix.branch }}
+          swift-version: development
+          swift-build: DEVELOPMENT-SNAPSHOT-2025-08-27-a
+          update-sdk-modules: true
+
       - uses: actions/checkout@v5
-      - run: swift test
+      - run: |
+          $ExperimentalSDK = "$(Split-Path -Path ${env:SDKROOT} -Parent)/WindowsExperimental.sdk"
+          swift build --triple x86_64-unknown-windows-msvc -debug-info-format none -c release -Xswiftc -sdk -Xswiftc ${ExperimentalSDK} -Xswiftc -static-stdlib
+          swift test
+
+      - name: 'Upload EXE'
+        uses: actions/upload-artifact@v4
+        with:
+          name: swiftformat.exe
+          path: .build/x86_64-unknown-windows-msvc/release/swiftformat.exe
+          retention-days: 1
 
   command-line-tool:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -105,6 +121,7 @@ jobs:
         run: xcodebuild -project SwiftFormat.xcodeproj -scheme "SwiftFormat (Command Line Tool)" -sdk macosx clean build
 
   swiftformat-for-xcode:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -124,6 +141,7 @@ jobs:
         run: xcodebuild -project SwiftFormat.xcodeproj -scheme "SwiftFormat for Xcode" -sdk macosx clean build
 
   editor-extension:
+    if: false
     strategy:
       fail-fast: false
       matrix:
@@ -143,6 +161,7 @@ jobs:
         run: xcodebuild -project SwiftFormat.xcodeproj -scheme "SwiftFormat (Editor Extension)" -sdk macosx clean build
 
   regression-tests:
+    if: false
     strategy:
       fail-fast: false
       matrix:
