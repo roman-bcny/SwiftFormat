@@ -1,0 +1,16 @@
+name: "validate"
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+jobs:
+  check-pr-base:
+    name: "Pull request base is 'main'"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if PR base is not 'main'
+        if: github.event.pull_request.base.ref != 'main'
+        run: |
+          echo "❌ Pull request must target the 'main' branch. Current base: '${{ github.event.pull_request.base.ref }}'"
+          exit 1
