@@ -91,7 +91,7 @@ jobs:
       - uses: actions/checkout@v5
       - run: |
           $ExperimentalSDK = "$(Split-Path -Path ${env:SDKROOT} -Parent)/WindowsExperimental.sdk"
-          swift test -Xswiftc -sdk -Xswiftc ${ExperimentalSDK} -Xswiftc -static-stdlib
+          swift test --triple x86_64-unknown-windows-msvc -Xswiftc -sdk -Xswiftc ${ExperimentalSDK} -Xswiftc -static-stdlib
 
       - name: 'Upload EXE'
         uses: actions/upload-artifact@v4
