@@ -3,6 +3,8 @@ name: Build Windows Release Artifacts
 on:
   release:
     types: [published]
+  pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
     inputs:
       tag:
@@ -18,22 +20,29 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target-triple: x86_64-unknown-windows-msvc
-            product-arch: amd64
-        # Disabled since the build was always failing
-        # - target-triple: aarch64-unknown-windows-msvc
-        #   product-arch: arm64
+          # - target-triple: x86_64-unknown-windows-msvc
+          #   product-arch: amd64
+          # Disabled since the build was always failing
+          - target-triple: aarch64-unknown-windows-msvc
+            product-arch: arm64
 
     steps:
       - uses: compnerd/gha-setup-swift@main
         with:
-          tag: 6.1-RELEASE
-          branch: swift-6.1-release
+          swift-version: development
+          # Note: This snapshot includes the WindowsExperimental.sdk needed for static linking support,
+          # this will be merged into Windows.sdk in the near future and $ExperimentalSDK related flags below will need to be removed
+          swift-build: DEVELOPMENT-SNAPSHOT-2025-08-27-a
+          update-sdk-modules: true
 
       - name: Checkout
         uses: actions/checkout@v5
 
-      - run: swift build -c release --triple ${{ matrix.target-triple }} -Xswiftc -gnone
+      - shell: pwsh
+        run: |
+          $ExperimentalSDK = "$(Split-Path -Path ${env:SDKROOT} -Parent)/WindowsExperimental.sdk"
+          swift build -c release --triple ${{ matrix.target-triple }} -debug-info-format none -Xswiftc -static-stdlib `
+            -Xswiftc -sdk -Xswiftc ${ExperimentalSDK}
 
       - uses: microsoft/setup-msbuild@v2.0.0
 
@@ -52,10 +61,19 @@ jobs:
             throw "Swift redistributable not found at $SwiftRedistDir"
           }
 
+          # Determine product version based on trigger
+          if ("${{ github.event_name }}" -eq "release") {
+            $ProductVersion = "${{ github.event.release.tag_name }}"
+          } elseif ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $ProductVersion = "${{ inputs.tag }}"
+          } else {
+            $ProductVersion = "0.0.0.1"
+          }
+
           & msbuild -nologo -restore Platforms\Windows\SwiftFormat.wixproj `
             -p:Configuration=Release `
             -p:ProductArchitecture=${{ matrix.product-arch }} `
-            -p:ProductVersion=${{ github.event.release.tag_name || inputs.tag }} `
+            -p:ProductVersion=$ProductVersion `
             -p:SwiftFormatBuildDir=${{ github.workspace }}\.build\${{ matrix.target-triple }}\release `
             -p:SwiftRedistDir=$SwiftRedistDir `
             -p:OutputPath=${{ github.workspace }}\artifacts `
@@ -82,7 +100,7 @@ jobs:
     name: Upload release artifacts
     runs-on: ubuntu-latest
     needs: [build]
-    if: always()
+    if: always() && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v5
