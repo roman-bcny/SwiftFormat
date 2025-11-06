@@ -65,9 +65,9 @@ jobs:
           if ("${{ github.event_name }}" -eq "release") {
             $ProductVersion = "${{ github.event.release.tag_name }}"
           } elseif ("${{ github.event_name }}" -eq "workflow_dispatch") {
-            $ProductVersion = "0.0.0.1"
+            $ProductVersion = "${{ inputs.tag }}"
           } else {
-            $ProductVersion = "PR${{ github.event.pull_request.number }}"
+            $ProductVersion = "0.0.0.1"
           }
 
           & msbuild -nologo -restore Platforms\Windows\SwiftFormat.wixproj `
